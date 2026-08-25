@@ -340,7 +340,7 @@ _BUILTIN_ACTIONS: list[ActionDefinition] = [
         action_id="shell.execute",
         service="shell",
         action="execute",
-        risk_tier=RiskTier.HIGH,
+        risk_tier=RiskTier.CRITICAL,
         required_scopes=["execute"],
         description="Execute a shell command (terminal access)",
     ),

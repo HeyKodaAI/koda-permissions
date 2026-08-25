@@ -29,7 +29,14 @@ class TestDenyByDefault:
     """The most critical tests: everything is denied unless explicitly allowed."""
 
     def test_unknown_action_denied(self, manager: PermissionManager) -> None:
+        """Unknown service:action ids are auto-registered but still denied — no scopes enabled."""
         result = manager.check("nonexistent:action")
+        assert not result.allowed
+        assert result.missing_scopes
+
+    def test_malformed_action_denied(self, manager: PermissionManager) -> None:
+        """Ids that don't parse as service:action are rejected outright."""
+        result = manager.check("nonsense-with-no-separator")
         assert not result.allowed
         assert "Unknown action" in result.reason
 
