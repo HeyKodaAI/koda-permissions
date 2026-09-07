@@ -22,7 +22,7 @@ def registry() -> ActionRegistry:
 
 @pytest.fixture
 def manager(registry, storage) -> PermissionManager:
-    return PermissionManager(registry=registry, storage=storage)
+    return PermissionManager(registry=registry, storage=storage, pin_verifier=lambda pin: pin == "1234")
 
 
 class TestDenyByDefault:

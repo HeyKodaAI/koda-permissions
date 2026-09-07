@@ -14,7 +14,7 @@ Design principles (from spec):
 from __future__ import annotations
 
 import logging
-from typing import Optional
+from typing import Callable, Optional
 
 from koda_permissions.models import (
     ApprovalBehavior,
@@ -35,7 +35,8 @@ class PermissionManager:
     Usage:
         result = manager.check("gmail:send_email")
         if result.allowed:
-            if result.approval_behavior == ApprovalBehavior.REQUIRE_APPROVAL:
+            if result.approval_behavior in (ApprovalBehavior.REQUIRE_APPROVAL,
+                                             ApprovalBehavior.REQUIRE_APPROVAL_PIN):
                 req_id = manager.request_approval("gmail:send_email", ...)
                 # ... wait for user response ...
             else:
@@ -48,9 +49,13 @@ class PermissionManager:
         self,
         registry: ActionRegistry,
         storage: PermissionStorage,
+        *,
+        pin_verifier: Callable[[str], bool] | None = None,
     ) -> None:
         self._registry = registry
         self._storage = storage
+        self._pin_verifier = pin_verifier
+        self._storage.normalize_tier_overrides()
 
     # ------------------------------------------------------------------
     # Core Permission Check
@@ -64,6 +69,7 @@ class PermissionManager:
         2. What approval behavior applies (tier-level)
         3. What's missing if denied
         """
+        action_id = action_id.replace(".", ":", 1) if ":" not in action_id else action_id
         action = self._registry.get(action_id)
 
         if action is None:
@@ -205,6 +211,7 @@ class PermissionManager:
 
         Returns the override ID, or None if the action doesn't exist.
         """
+        action_id = action_id.replace(".", ":", 1) if ":" not in action_id else action_id
         action = self._registry.get(action_id)
         if action is None:
             return None
@@ -226,6 +233,7 @@ class PermissionManager:
 
     def reset_tier(self, action_id: str) -> bool:
         """Remove a tier override, reverting to default."""
+        action_id = action_id.replace(".", ":", 1) if ":" not in action_id else action_id
         return self._storage.delete_tier_override(action_id)
 
     def get_overrides(self) -> list[dict]:
@@ -246,6 +254,7 @@ class PermissionManager:
 
         Returns the request ID, or None if the action doesn't need approval.
         """
+        action_id = action_id.replace(".", ":", 1) if ":" not in action_id else action_id
         result = self.check(action_id)
 
         if not result.allowed:
@@ -296,6 +305,14 @@ class PermissionManager:
         if approved and request.get("requires_pin") and not pin:
             logger.warning("Approval %s requires PIN but none provided", request_id)
             return {**request, "error": "PIN required for critical-tier actions"}
+
+        if approved and request.get("requires_pin"):
+            try:
+                valid = self._pin_verifier is not None and self._pin_verifier(pin) is True
+            except Exception:
+                valid = False
+            if not valid:
+                return {**request, "error": "PIN verification failed or unavailable"}
 
         self._storage.resolve_approval(request_id, approved)
         logger.info(

@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "koda-permissions"
-version = "0.1.0"
+version = "0.1.1"
 description = "Deny-by-default, risk-tiered permission system for AI agent actions"
 readme = "README.md"
 requires-python = ">=3.11"

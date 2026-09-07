@@ -32,6 +32,27 @@ class PermissionStorage:
         self._conn.row_factory = sqlite3.Row
         self._create_tables()
 
+    def normalize_tier_overrides(self) -> None:
+        """Migrate delimiter aliases atomically; conflicts keep the stricter tier."""
+        ranks = {"low": 0, "medium": 1, "high": 2, "critical": 3}
+        with self._conn:
+            rows = self._conn.execute("SELECT * FROM tier_overrides").fetchall()
+            groups = {}
+            for row in rows:
+                key = row["action_id"]
+                key = key.replace(".", ":", 1) if ":" not in key else key
+                groups.setdefault(key, []).append(row)
+            for canonical, aliases in groups.items():
+                winner = max(aliases, key=lambda r: ranks.get(r["override_tier"], 3))
+                for row in aliases:
+                    self._conn.execute("DELETE FROM tier_overrides WHERE id = ?", (row["id"],))
+                self._conn.execute(
+                    "INSERT INTO tier_overrides VALUES (?, ?, ?, ?, ?, ?)",
+                    (winner["id"], canonical, winner["original_tier"],
+                     winner["override_tier"] if winner["override_tier"] in ranks else "critical",
+                     winner["reason"], winner["created_at"]),
+                )
+
     def _create_tables(self) -> None:
         """Create tables if they don't exist."""
         self._conn.executescript(

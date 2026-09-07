@@ -34,6 +34,10 @@ A permission check runs in two stages:
 - **SQLite persistence** (WAL mode) for scopes, overrides, and approvals — a single file, no server.
 - **FastAPI router** exposing the whole system under `/api/v1/permissions/*`.
 
+## Review fixes (0.1.1)
+
+See [CHANGELOG.md](CHANGELOG.md) for fixes, compatibility changes and upgrade guidance.
+
 ## Install
 
 Not yet on PyPI. Requires Python 3.11+.
@@ -110,7 +114,7 @@ pip install -e . pytest pytest-asyncio
 pytest
 ```
 
-52 tests covering the manager, registry, and storage layers.
+61 tests covering the manager, registry, and storage layers.
 
 ## License
 
